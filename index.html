@@ -72,7 +72,7 @@
         let lastGenerated = null;
 
         // === ИЗМЕНИ ЭТОТ URL НА СВОЙ N8N WEBHOOK ===
-        const N8N_WEBHOOK_URL = "https://harold1488.app.n8n.cloud/webhook-test/generate-story-full";
+        const N8N_WEBHOOK_URL = "https://your-n8n-instance.com/webhook/generate-story";
 
         function switchTab(tabIndex) {
             document.querySelectorAll('.service-tab').forEach((tab, i) => {
@@ -283,128 +283,127 @@
             reader.readAsDataURL(file);
         }
         
-// === ГЛАВНАЯ ФУНКЦИЯ — ОТПРАВКА В N8N (с поддержкой фото) ===
-async function handleFormSubmit(e) {
-    e.preventDefault();
-    
-    const geo = document.getElementById('geo-select').value;
-    const appName = document.getElementById('app-name').value || 'Приложение';
-    const winAmount = document.getElementById('win-amount').value || '86400';
-    const slotName = document.getElementById('slot-name').value || 'Слот';
-    const extraContext = document.getElementById('extra-context').value || '';
-    const storyLength = document.getElementById('story-length').value;
-    const useNews = document.getElementById('news-researcher').checked;
-    
-    // === Конвертируем фото в base64 ===
-    let photoBase64 = null;
-    let photoFilename = null;
-    const photoInput = document.getElementById('photo-input');
-    
-    if (photoInput.files.length > 0) {
-        photoFilename = photoInput.files[0].name;
-        photoBase64 = await new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const base64 = reader.result.split(',')[1];
-                resolve(base64);
+        // === ГЛАВНАЯ ФУНКЦИЯ — ОТПРАВКА В N8N (с поддержкой фото) ===
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const geo = document.getElementById('geo-select').value;
+            const appName = document.getElementById('app-name').value || 'Приложение';
+            const winAmount = document.getElementById('win-amount').value || '86400';
+            const slotName = document.getElementById('slot-name').value || 'Слот';
+            const extraContext = document.getElementById('extra-context').value || '';
+            const storyLength = document.getElementById('story-length').value;
+            const useNews = document.getElementById('news-researcher').checked;
+            
+            // === НОВОЕ: Конвертируем фото в base64 ===
+            let photoBase64 = null;
+            let photoFilename = null;
+            const photoInput = document.getElementById('photo-input');
+            
+            if (photoInput.files.length > 0) {
+                photoFilename = photoInput.files[0].name;
+                photoBase64 = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        // Убираем префикс "data:image/...;base64," оставляем только чистый base64
+                        const base64 = reader.result.split(',')[1];
+                        resolve(base64);
+                    };
+                    reader.readAsDataURL(photoInput.files[0]);
+                });
+            }
+            
+            // Собираем данные для отправки в n8n
+            const formData = {
+                geo: geo,
+                app_name: appName,
+                win_amount: winAmount,
+                slot_name: slotName,
+                extra_context: extraContext,
+                story_length: storyLength,
+                use_news: useNews,
+                timestamp: new Date().toISOString(),
+                photo_base64: photoBase64,
+                photo_filename: photoFilename
             };
-            reader.readAsDataURL(photoInput.files[0]);
-        });
-    }
-    
-    const formData = {
-        geo: geo,
-        app_name: appName,
-        win_amount: winAmount,
-        slot_name: slotName,
-        extra_context: extraContext,
-        story_length: storyLength,
-        use_news: useNews,
-        timestamp: new Date().toISOString(),
-        photo_base64: photoBase64,
-        photo_filename: photoFilename
-    };
-    
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Генерируем...`;
-    submitBtn.disabled = true;
-    
-    try {
-        const response = await fetch(N8N_WEBHOOK_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        });
+            
+            // Показываем загрузку
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Генерируем...`;
+            submitBtn.disabled = true;
+            
+            try {
+                // Отправляем в n8n Webhook
+                const response = await fetch(N8N_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (!response.ok) throw new Error('Ошибка при генерации');
+                
+                const result = await response.json();
+                console.log('Ответ от n8n:', result);
+                
+                lastGenerated = result;
+                
+                showReviewUI(
+                    result.original || result.output?.original || result.text || result.story || '',
+                    result.russian || result.output?.russian || result.translation || result.ru || ''
+                );
+                
+            } catch (error) {
+                console.error(error);
+                alert('Ошибка при отправке в n8n. Проверьте URL вебхука и консоль.');
+                showReviewUI(
+                    `Я играл в ${appName} и выиграл ${winAmount} € в слот ${slotName}! ${extraContext}`,
+                    `Я играл в ${appName} и выиграл ${winAmount} € в слот ${slotName}! ${extraContext}`
+                );
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        }
         
-        if (!response.ok) throw new Error('Ошибка при генерации');
-        
-        const result = await response.json();
-        lastGenerated = result;
-        showReviewUI(
-          result.original || result.output?.original || result.text || '',
-          result.russian || result.output?.russian || result.translation || ''
-        );
-        
-    } catch (error) {
-        console.error(error);
-        alert('Ошибка при отправке в n8n. Проверьте URL вебхука и консоль.');
-        showReviewUI(
-            `Я играл в ${appName} и выиграл ${winAmount} € в слот ${slotName}! ${extraContext}`,
-            `Я играл в ${appName} и выиграл ${winAmount} € в слот ${slotName}! ${extraContext}`
-        );
-    } finally {
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-    }
-}
-        
-function showReviewUI(originalText, russianText) {
-    console.log('showReviewUI вызвана с:', { originalText, russianText });
-    
-    const empty = document.getElementById('preview-empty');
-    const review = document.getElementById('preview-review');
-    
-    if (!empty || !review) {
-        console.error('Не найдены элементы preview-empty или preview-review');
-        return;
-    }
-    
-    empty.style.display = 'none';
-    review.style.display = 'block';
-    
-    review.innerHTML = `
-        <div class="text-center mb-4">
-            <div class="text-xl font-semibold text-slate-900">Все ок?</div>
-            <div class="text-sm text-slate-500 mt-1">Если не ок — поправи</div>
-        </div>
-        
-        <div class="mb-4">
-            <div class="text-xs font-semibold text-slate-500 mb-1.5">Оригинальный текст</div>
-            <div class="review-box text-sm text-slate-700">${originalText || 'Нет текста'}</div>
-        </div>
-        
-        <div class="mb-4">
-            <div class="text-xs font-semibold text-slate-500 mb-1.5">Перевод на русский</div>
-            <div class="review-box text-sm text-slate-700">${russianText || 'Нет перевода'}</div>
-        </div>
-        
-        <div class="mb-4">
-            <div class="text-xs font-semibold text-slate-500 mb-1.5">action *</div>
-            <select class="form-input w-full px-4 py-2.5 border border-slate-200 rounded-2xl text-sm">
-                <option>Выберите действие...</option>
-                <option>Опубликовать в Instagram</option>
-                <option>Опубликовать в Telegram</option>
-                <option>Сохранить в черновики</option>
-            </select>
-        </div>
-        
-        <button onclick="confirmAndPublish()" 
-                class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-2xl transition-colors">
-            Подтвердить и опубликовать
-        </button>
-    `;
-}
+        function showReviewUI(originalText, russianText) {
+            const empty = document.getElementById('preview-empty');
+            const review = document.getElementById('preview-review');
+            if (!empty || !review) return;
+            
+            empty.style.display = 'none';
+            review.style.display = 'block';
+            review.innerHTML = `
+                <div class="text-center mb-4">
+                    <div class="text-xl font-semibold text-slate-900">Все ок?</div>
+                    <div class="text-sm text-slate-500 mt-1">Если не ок — поправи</div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="text-xs font-semibold text-slate-500 mb-1.5">Оригинальный текст</div>
+                    <div class="review-box text-sm text-slate-700 leading-relaxed max-h-[140px] overflow-auto">${originalText}</div>
+                </div>
+                
+                <div class="mb-5">
+                    <div class="text-xs font-semibold text-slate-500 mb-1.5">Перевод на русский</div>
+                    <div class="review-box text-sm text-slate-700 leading-relaxed max-h-[140px] overflow-auto">${russianText}</div>
+                </div>
+                
+                <div class="mb-5">
+                    <div class="text-xs font-semibold text-slate-500 mb-1.5">action <span class="text-red-500">*</span></div>
+                    <select id="action-select" class="form-input w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white">
+                        <option value="">Выберите действие...</option>
+                        <option value="publish">Опубликовать как есть</option>
+                        <option value="edit">Отправить на доработку</option>
+                        <option value="reject">Отклонить</option>
+                    </select>
+                </div>
+                
+                <button onclick="approveStory()" class="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-2xl text-sm tracking-wider flex items-center justify-center gap-x-2 shadow-lg shadow-blue-500/30 active:scale-[0.985] transition-all">
+                    <span>Подтвердить и опубликовать</span>
+                </button>
+            `;
+        }
         
         function approveStory() {
             const action = document.getElementById('action-select')?.value || 'publish';
