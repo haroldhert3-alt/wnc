@@ -341,7 +341,10 @@ async function handleFormSubmit(e) {
         
         const result = await response.json();
         lastGenerated = result;
-        showReviewUI(result.original || result.text, result.ru || result.translation);
+        showReviewUI(
+          result.original || result.output?.original || result.text || '',
+          result.russian || result.output?.russian || result.translation || ''
+        );
         
     } catch (error) {
         console.error(error);
