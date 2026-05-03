@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WNC — Генератор сториков</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+        body { font-family: 'Inter', system_ui, sans-serif; }
+        .logo-font { font-family: 'Space Grotesk', 'Inter', sans-serif; font-weight: 600; letter-spacing: -0.025em; }
+        .service-tab { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .service-tab.active { background-color: #0D6EFD; color: white; box-shadow: 0 10px 15px -3px rgb(13 110 253 / 0.2); }
+        .service-tab:not(.active):hover { background-color: #f1f5f9; }
+        .content-card { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05); }
+        .form-input { transition: all 0.2s ease; }
+        .form-input:focus { border-color: #0D6EFD; box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.1); outline: none; }
+        .form-label { font-size: 13px; font-weight: 600; color: #334155; margin-bottom: 6px; display: block; }
+        .required::after { content: ' *'; color: #ef4444; }
+        .review-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; }
+        .soon-purple { background: #f3e8ff; color: #7c3aed; font-size: 9px; padding: 1px 6px; border-radius: 9999px; }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <header class="bg-white border-b border-slate-100">
+        <div class="max-w-screen-xl mx-auto px-8 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-x-2">
+                <div class="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-inner">
+                    <i class="fa-solid fa-layer-group text-white text-2xl"></i>
+                </div>
+                <span class="logo-font text-2xl font-semibold tracking-tighter text-slate-900">WNC</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-screen-xl mx-auto px-8 pt-8">
+        <div class="flex items-center gap-x-2 mb-8 overflow-x-auto pb-2">
+            <button onclick="switchTab(0)" class="service-tab active flex-shrink-0 px-5 py-2.5 rounded-3xl text-sm font-semibold flex items-center gap-x-2 shadow-sm bg-blue-600 text-white" id="tab-0">
+                <i class="fa-solid fa-magic"></i><span>Генератор сториков</span>
+            </button>
+            <button onclick="switchTab(1)" class="service-tab flex-shrink-0 px-5 py-2.5 rounded-3xl text-sm font-semibold flex items-center gap-x-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" id="tab-1">
+                <i class="fa-solid fa-comments"></i><span>Генератор комментов</span><span class="soon-purple">скоро</span>
+            </button>
+            <button onclick="switchTab(2)" class="service-tab flex-shrink-0 px-5 py-2.5 rounded-3xl text-sm font-semibold flex items-center gap-x-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" id="tab-2">
+                <i class="fa-solid fa-image"></i><span>Генератор фото ФП</span><span class="soon-purple">скоро</span>
+            </button>
+            <button onclick="switchTab(3)" class="service-tab flex-shrink-0 px-5 py-2.5 rounded-3xl text-sm font-semibold flex items-center gap-x-2 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50" id="tab-3">
+                <i class="fa-solid fa-gif"></i><span>Генератор GIF</span><span class="soon-purple">скоро</span>
+            </button>
+        </div>
+
+        <div id="main-content"></div>
+    </div>
+
+    <footer class="max-w-screen-xl mx-auto px-8 mt-16 pb-8 text-center">
+        <div class="text-xs text-slate-400 flex items-center justify-center gap-x-4">
+            <div>© 2026 WNC</div>
+            <div class="w-px h-2.5 bg-slate-200"></div>
+            <a href="#" class="hover:text-slate-500 transition-colors">Политика конфиденциальности</a>
+            <div class="w-px h-2.5 bg-slate-200"></div>
+            <a href="#" class="hover:text-slate-500 transition-colors">Поддержка</a>
+        </div>
+    </footer>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        function initializeTailwind() { document.documentElement.style.setProperty('--accent', '#0D6EFD'); }
+
+        let currentTab = 0;
+        let selectedGeo = 'AU';
+        let lastGenerated = null;
+
+        // === ИЗМЕНИ ЭТОТ URL НА СВОЙ N8N WEBHOOK ===
+        const N8N_WEBHOOK_URL = "https://your-n8n-instance.com/webhook/generate-story";
+
+        function switchTab(tabIndex) {
+            document.querySelectorAll('.service-tab').forEach((tab, i) => {
+                if (i === tabIndex) {
+                    tab.classList.add('active', 'bg-blue-600', 'text-white', 'shadow-sm');
+                    tab.classList.remove('bg-white', 'border', 'border-slate-200', 'text-slate-700');
+                } else {
+                    tab.classList.remove('active', 'bg-blue-600', 'text-white', 'shadow-sm');
+                    tab.classList.add('bg-white', 'border', 'border-slate-200', 'text-slate-700');
+                }
+            });
+            currentTab = tabIndex;
+            renderContent();
+        }
+
+        function renderContent() {
+            const container = document.getElementById('main-content');
+            
+            if (currentTab === 0) {
+                container.innerHTML = `
+                    <div class="max-w-[1080px] mx-auto">
+                        <div class="mb-8 text-center">
+                            <h1 class="text-4xl font-semibold tracking-tighter text-slate-900">Генератор сториков</h1>
+                            <p class="mt-3 text-lg text-slate-600">Загрузите фото и описание — получите готовую эмоциональную историю для соцсетей на любом языке</p>
+                            
+                            <div class="mt-4 flex justify-center">
+                                <div class="inline-flex items-center gap-x-2 px-4 py-1.5 bg-white rounded-2xl border border-slate-200 text-xs">
+                                    <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                                    <span class="font-medium text-emerald-700">42 891 история создана сегодня</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            
+                            <!-- FORM -->
+                            <div class="lg:col-span-7">
+                                <div class="bg-white rounded-3xl border border-slate-200 p-8 content-card">
+                                    <form id="story-form" onsubmit="handleFormSubmit(event)">
+                                        <div class="mb-6">
+                                            <label class="form-label required">Фото</label>
+                                            <div id="photo-upload-zone" class="border border-slate-200 rounded-2xl p-4 flex items-center gap-4 hover:border-blue-300 transition-colors cursor-pointer bg-slate-50" onclick="document.getElementById('photo-input').click()">
+                                                <input type="file" id="photo-input" accept="image/*" class="hidden" onchange="handlePhotoUpload(event)">
+                                                <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-slate-200 flex-shrink-0">
+                                                    <i class="fa-solid fa-image text-xl text-slate-400"></i>
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div id="photo-placeholder" class="text-sm font-medium text-slate-700">Выбор файлов</div>
+                                                    <div id="photo-filename" class="text-xs text-slate-500 truncate hidden"></div>
+                                                </div>
+                                                <div class="px-4 py-1.5 text-xs font-semibold bg-white border border-slate-200 rounded-xl text-slate-600">Обзор</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-6">
+                                            <label class="form-label required">GEO (Страна)</label>
+                                            <select id="geo-select" class="form-input w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white" onchange="selectedGeo = this.value">
+                                                <option value="AU">AU</option>
+                                                <option value="ES">ES</option>
+                                                <option value="FR">FR</option>
+                                                <option value="IT">IT</option>
+                                                <option value="HU">HU</option>
+                                                <option value="GB">GB</option>
+                                                <option value="DE">DE</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-6">
+                                            <label class="form-label required">Название приложения</label>
+                                            <input type="text" id="app-name" class="form-input w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm" placeholder="Например: Lucky Slots, Mega Win Casino">
+                                        </div>
+
+                                        <div class="mb-6">
+                                            <label class="form-label required">Сумма выигрыша</label>
+                                            <div class="relative">
+                                                <input type="number" id="win-amount" class="form-input w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm pr-12" placeholder="86400">
+                                                <div class="absolute right-4 top-3.5 text-slate-400 text-sm font-medium">€</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-6">
+                                            <label class="form-label">Длина сторики</label>
+                                            <select id="story-length" class="form-input w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white">
+                                                <option value="short">Короткая (150-250 слов)</option>
+                                                <option value="medium" selected>Средняя (300-450 слов)</option>
+                                                <option value="long">Длинная (500+ слов)</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mb-6">
+                                            <label class="form-label">Название слота</label>
+                                            <input type="text" id="slot-name" class="form-input w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm" placeholder="Например: Gates of Olympus, Big Bass Bonanza">
+                                        </div>
+
+                                        <div class="mb-6">
+                                            <label class="form-label">Дополнительный контекст</label>
+                                            <textarea id="extra-context" rows="3" class="form-input w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm resize-y" placeholder="Например: игрок из маленького города, отец двоих детей..."></textarea>
+                                        </div>
+
+                                        <div class="mb-8 flex items-start gap-3">
+                                            <input type="checkbox" id="news-researcher" class="mt-1 w-4 h-4 accent-blue-600">
+                                            <label for="news-researcher" class="text-sm text-slate-600 cursor-pointer">Включить анализ последних новостей ГЕО</label>
+                                        </div>
+
+                                        <button type="submit" class="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-2xl text-sm tracking-wider flex items-center justify-center gap-x-3 shadow-lg shadow-blue-500/30 active:scale-[0.985] transition-all">
+                                            <i class="fa-solid fa-magic"></i>
+                                            <span>СГЕНЕРИРОВАТЬ ИСТОРИЮ</span>
+                                        </button>
+                                        
+                                        <div class="text-center mt-3">
+                                            <div class="text-[10px] text-emerald-600 flex items-center justify-center gap-x-1">
+                                                <i class="fa-solid fa-globe"></i>
+                                                <span>Всего сгенерировано историй: 98</span>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            
+                            <!-- PREVIEW -->
+                            <div class="lg:col-span-5">
+                                <div class="sticky top-8">
+                                    <div id="preview-card" class="bg-white rounded-3xl border border-slate-200 p-6 content-card min-h-[420px]">
+                                        <div class="flex items-center justify-between mb-4 px-1">
+                                            <div class="font-semibold text-slate-800 flex items-center gap-x-2">
+                                                <i class="fa-solid fa-eye text-blue-500"></i> 
+                                                <span>Предпросмотр истории</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div id="preview-empty" class="flex flex-col items-center justify-center text-center py-12">
+                                            <div class="w-14 h-14 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-inner border border-slate-100">
+                                                <i class="fa-solid fa-file-lines text-3xl text-slate-300"></i>
+                                            </div>
+                                            <div class="text-sm font-medium text-slate-500">Здесь появится история</div>
+                                            <div class="text-xs text-slate-400 mt-1 max-w-[200px]">Заполните форму и нажмите «Сгенерировать историю»</div>
+                                        </div>
+                                        
+                                        <div id="preview-review" class="hidden">
+                                            <!-- Populated dynamically -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                `;
+                
+                setTimeout(() => {
+                    initPhotoUpload();
+                    document.getElementById('geo-select').value = selectedGeo;
+                }, 30);
+                
+            } else {
+                const serviceNames = ["Генератор комментов", "Генератор фото ФП", "Генератор GIF"];
+                const serviceIcons = ["fa-comments", "fa-image", "fa-gif"];
+                
+                container.innerHTML = `
+                    <div class="max-w-[820px] mx-auto">
+                        <div class="bg-white rounded-3xl border border-slate-200 p-10 text-center content-card">
+                            <div class="mx-auto w-20 h-20 bg-gradient-to-br from-purple-400 to-violet-500 rounded-3xl flex items-center justify-center mb-6 shadow-inner">
+                                <i class="fa-solid ${serviceIcons[currentTab - 1]} text-white text-4xl"></i>
+                            </div>
+                            <h2 class="text-3xl font-semibold tracking-tight">${serviceNames[currentTab - 1]}</h2>
+                            <div class="inline-flex items-center gap-x-2 mt-3 mb-6 bg-purple-100 text-purple-600 px-4 py-1 rounded-2xl text-sm font-semibold">
+                                <i class="fa-solid fa-clock"></i>
+                                <span>В разработке • Релиз скоро</span>
+                            </div>
+                            <p class="text-slate-600 max-w-md mx-auto">Этот сервис находится в активной разработке. Следите за обновлениями!</p>
+                            <button onclick="notifyMe()" class="mt-8 mx-auto flex items-center gap-x-2 text-sm font-semibold text-white bg-gradient-to-r from-purple-500 to-violet-500 px-6 py-2.5 rounded-2xl hover:brightness-105 active:scale-[0.985] transition-all">
+                                <i class="fa-solid fa-bell"></i>
+                                <span>Уведомить меня о запуске</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        function initPhotoUpload() {
+            const zone = document.getElementById('photo-upload-zone');
+            if (!zone) return;
+            zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = '#0D6EFD'; });
+            zone.addEventListener('dragleave', () => zone.style.borderColor = '#e2e8f0');
+            zone.addEventListener('drop', e => {
+                e.preventDefault(); zone.style.borderColor = '#e2e8f0';
+                if (e.dataTransfer.files.length > 0) handlePhotoFile(e.dataTransfer.files[0]);
+            });
+        }
+        
+        function handlePhotoUpload(e) {
+            if (e.target.files.length > 0) handlePhotoFile(e.target.files[0]);
+        }
+        
+        function handlePhotoFile(file) {
+            if (!file.type.startsWith('image/')) { alert('Пожалуйста, выберите изображение'); return; }
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                const placeholder = document.getElementById('photo-placeholder');
+                const filename = document.getElementById('photo-filename');
+                if (placeholder && filename) {
+                    placeholder.style.display = 'none';
+                    filename.style.display = 'block';
+                    filename.innerHTML = `<i class="fa-solid fa-check text-emerald-500 mr-1"></i> ${file.name}`;
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // === ГЛАВНАЯ ФУНКЦИЯ — ОТПРАВКА В N8N ===
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            const geo = document.getElementById('geo-select').value;
+            const appName = document.getElementById('app-name').value || 'Приложение';
+            const winAmount = document.getElementById('win-amount').value || '86400';
+            const slotName = document.getElementById('slot-name').value || 'Слот';
+            const extraContext = document.getElementById('extra-context').value || '';
+            const storyLength = document.getElementById('story-length').value;
+            const useNews = document.getElementById('news-researcher').checked;
+            
+            // Собираем данные для отправки в n8n
+            const formData = {
+                geo: geo,
+                app_name: appName,
+                win_amount: winAmount,
+                slot_name: slotName,
+                extra_context: extraContext,
+                story_length: storyLength,
+                use_news: useNews,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Показываем загрузку
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Генерируем...`;
+            submitBtn.disabled = true;
+            
+            try {
+                // Отправляем в n8n Webhook
+                const response = await fetch(N8N_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (!response.ok) throw new Error('Ошибка при генерации');
+                
+                const result = await response.json();
+                
+                // Показываем результат в предпросмотре (как в текущей версии)
+                lastGenerated = result;
+                showReviewUI(result.original || result.text, result.ru || result.translation);
+                
+            } catch (error) {
+                console.error(error);
+                alert('Ошибка при отправке в n8n. Проверьте URL вебхука и консоль.');
+                // Для теста показываем демо-результат
+                showReviewUI(
+                    `Я играл в ${appName} и выиграл ${winAmount} € в слот ${slotName}! ${extraContext}`,
+                    `Я играл в ${appName} и выиграл ${winAmount} € в слот ${slotName}! ${extraContext}`
+                );
+            } finally {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        }
+        
+        function showReviewUI(originalText, russianText) {
+            const empty = document.getElementById('preview-empty');
+            const review = document.getElementById('preview-review');
+            if (!empty || !review) return;
+            
+            empty.style.display = 'none';
+            review.style.display = 'block';
+            review.innerHTML = `
+                <div class="text-center mb-4">
+                    <div class="text-xl font-semibold text-slate-900">Все ок?</div>
+                    <div class="text-sm text-slate-500 mt-1">Если не ок — поправи</div>
+                </div>
+                
+                <div class="mb-4">
+                    <div class="text-xs font-semibold text-slate-500 mb-1.5">Оригинальный текст</div>
+                    <div class="review-box text-sm text-slate-700 leading-relaxed max-h-[140px] overflow-auto">${originalText}</div>
+                </div>
+                
+                <div class="mb-5">
+                    <div class="text-xs font-semibold text-slate-500 mb-1.5">Перевод на русский</div>
+                    <div class="review-box text-sm text-slate-700 leading-relaxed max-h-[140px] overflow-auto">${russianText}</div>
+                </div>
+                
+                <div class="mb-5">
+                    <div class="text-xs font-semibold text-slate-500 mb-1.5">action <span class="text-red-500">*</span></div>
+                    <select id="action-select" class="form-input w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white">
+                        <option value="">Выберите действие...</option>
+                        <option value="publish">Опубликовать как есть</option>
+                        <option value="edit">Отправить на доработку</option>
+                        <option value="reject">Отклонить</option>
+                    </select>
+                </div>
+                
+                <button onclick="approveStory()" class="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-2xl text-sm tracking-wider flex items-center justify-center gap-x-2 shadow-lg shadow-blue-500/30 active:scale-[0.985] transition-all">
+                    <span>Подтвердить и опубликовать</span>
+                </button>
+            `;
+        }
+        
+        function approveStory() {
+            const action = document.getElementById('action-select')?.value || 'publish';
+            const card = document.getElementById('preview-card');
+            
+            if (action === 'publish' || action === '') {
+                card.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="mx-auto w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-check text-emerald-600 text-3xl"></i>
+                        </div>
+                        <div class="font-semibold text-xl text-emerald-600">Готово!</div>
+                        <p class="text-slate-600 mt-2">История одобрена и скопирована в буфер обмена.</p>
+                        <button onclick="copyFinalStory()" class="mt-6 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-2xl transition-all">Скопировать финальную версию</button>
+                        <button onclick="renderContent()" class="mt-3 block mx-auto text-xs text-slate-500 hover:text-slate-700">Создать новую историю</button>
+                    </div>
+                `;
+                if (lastGenerated) {
+                    const full = (lastGenerated.original || lastGenerated.text) + '\n\n--- Перевод ---\n\n' + (lastGenerated.ru || lastGenerated.translation);
+                    navigator.clipboard.writeText(full).catch(() => {});
+                }
+            } else if (action === 'edit') {
+                card.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="mx-auto w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-edit text-amber-600 text-3xl"></i>
+                        </div>
+                        <div class="font-semibold text-xl">Отправлено на доработку</div>
+                        <p class="text-slate-600 mt-2 text-sm">История вернётся к вам после правок.</p>
+                        <button onclick="renderContent()" class="mt-6 px-6 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-2xl">Назад к форме</button>
+                    </div>
+                `;
+            } else {
+                card.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                            <i class="fa-solid fa-times text-red-600 text-3xl"></i>
+                        </div>
+                        <div class="font-semibold text-xl text-red-600">Отклонено</div>
+                        <p class="text-slate-600 mt-2 text-sm">История отправлена в архив.</p>
+                        <button onclick="renderContent()" class="mt-6 px-6 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50 rounded-2xl">Создать новую</button>
+                    </div>
+                `;
+            }
+        }
+        
+        function copyFinalStory() {
+            if (!lastGenerated) return;
+            const full = (lastGenerated.original || lastGenerated.text) + '\n\n--- Перевод на русский ---\n\n' + (lastGenerated.ru || lastGenerated.translation);
+            navigator.clipboard.writeText(full).then(() => {
+                const btns = document.querySelectorAll('#preview-card button');
+                if (btns[0]) {
+                    const orig = btns[0].innerHTML;
+                    btns[0].innerHTML = `<i class="fa-solid fa-check mr-2"></i> Скопировано!`;
+                    setTimeout(() => { if (btns[0]) btns[0].innerHTML = orig; }, 1500);
+                }
+            });
+        }
+        
+        function notifyMe() {
+            const btn = event.currentTarget;
+            btn.innerHTML = `<i class="fa-solid fa-check mr-2"></i> Спасибо! Уведомим`;
+            btn.disabled = true;
+            setTimeout(() => {
+                const container = document.querySelector('#main-content .bg-white');
+                if (container) {
+                    container.innerHTML = `<div class="text-center py-8"><div class="mx-auto w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4"><i class="fa-solid fa-envelope text-emerald-600 text-3xl"></i></div><div class="font-semibold text-xl">Готово!</div><p class="text-slate-600 mt-2 max-w-xs mx-auto">Вы получите письмо за 3 дня до запуска сервиса.</p><button onclick="renderContent()" class="mt-6 text-sm font-semibold px-5 py-2 text-blue-600 hover:bg-blue-50 rounded-2xl transition-colors">Вернуться назад</button></div>`;
+                }
+            }, 1200);
+        }
+        
+        function init() {
+            initializeTailwind();
+            document.getElementById('tab-0').classList.add('active', 'bg-blue-600', 'text-white', 'shadow-sm');
+            renderContent();
+            
+            console.log('%c[WNC + n8n] Готово! Замени N8N_WEBHOOK_URL на свой вебхук.', 'color:#64748b');
+        }
+        
+        window.onload = init;
+    </script>
+</body>
+</html>
