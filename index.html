@@ -283,65 +283,78 @@
             reader.readAsDataURL(file);
         }
         
-        // === ГЛАВНАЯ ФУНКЦИЯ — ОТПРАВКА В N8N ===
-        async function handleFormSubmit(e) {
-            e.preventDefault();
-            
-            const geo = document.getElementById('geo-select').value;
-            const appName = document.getElementById('app-name').value || 'Приложение';
-            const winAmount = document.getElementById('win-amount').value || '86400';
-            const slotName = document.getElementById('slot-name').value || 'Слот';
-            const extraContext = document.getElementById('extra-context').value || '';
-            const storyLength = document.getElementById('story-length').value;
-            const useNews = document.getElementById('news-researcher').checked;
-            
-            // Собираем данные для отправки в n8n
-            const formData = {
-                geo: geo,
-                app_name: appName,
-                win_amount: winAmount,
-                slot_name: slotName,
-                extra_context: extraContext,
-                story_length: storyLength,
-                use_news: useNews,
-                timestamp: new Date().toISOString()
+// === ГЛАВНАЯ ФУНКЦИЯ — ОТПРАВКА В N8N (с поддержкой фото) ===
+async function handleFormSubmit(e) {
+    e.preventDefault();
+    
+    const geo = document.getElementById('geo-select').value;
+    const appName = document.getElementById('app-name').value || 'Приложение';
+    const winAmount = document.getElementById('win-amount').value || '86400';
+    const slotName = document.getElementById('slot-name').value || 'Слот';
+    const extraContext = document.getElementById('extra-context').value || '';
+    const storyLength = document.getElementById('story-length').value;
+    const useNews = document.getElementById('news-researcher').checked;
+    
+    // === Конвертируем фото в base64 ===
+    let photoBase64 = null;
+    let photoFilename = null;
+    const photoInput = document.getElementById('photo-input');
+    
+    if (photoInput.files.length > 0) {
+        photoFilename = photoInput.files[0].name;
+        photoBase64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
             };
-            
-            // Показываем загрузку
-            const submitBtn = e.target.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Генерируем...`;
-            submitBtn.disabled = true;
-            
-            try {
-                // Отправляем в n8n Webhook
-                const response = await fetch(N8N_WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-                
-                if (!response.ok) throw new Error('Ошибка при генерации');
-                
-                const result = await response.json();
-                
-                // Показываем результат в предпросмотре (как в текущей версии)
-                lastGenerated = result;
-                showReviewUI(result.original || result.text, result.ru || result.translation);
-                
-            } catch (error) {
-                console.error(error);
-                alert('Ошибка при отправке в n8n. Проверьте URL вебхука и консоль.');
-                // Для теста показываем демо-результат
-                showReviewUI(
-                    `Я играл в ${appName} и выиграл ${winAmount} € в слот ${slotName}! ${extraContext}`,
-                    `Я играл в ${appName} и выиграл ${winAmount} € в слот ${slotName}! ${extraContext}`
-                );
-            } finally {
-                submitBtn.innerHTML = originalText;
-                submitBtn.disabled = false;
-            }
-        }
+            reader.readAsDataURL(photoInput.files[0]);
+        });
+    }
+    
+    const formData = {
+        geo: geo,
+        app_name: appName,
+        win_amount: winAmount,
+        slot_name: slotName,
+        extra_context: extraContext,
+        story_length: storyLength,
+        use_news: useNews,
+        timestamp: new Date().toISOString(),
+        photo_base64: photoBase64,
+        photo_filename: photoFilename
+    };
+    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin mr-2"></i> Генерируем...`;
+    submitBtn.disabled = true;
+    
+    try {
+        const response = await fetch(N8N_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        if (!response.ok) throw new Error('Ошибка при генерации');
+        
+        const result = await response.json();
+        lastGenerated = result;
+        showReviewUI(result.original || result.text, result.ru || result.translation);
+        
+    } catch (error) {
+        console.error(error);
+        alert('Ошибка при отправке в n8n. Проверьте URL вебхука и консоль.');
+        showReviewUI(
+            `Я играл в ${appName} и выиграл ${winAmount} € в слот ${slotName}! ${extraContext}`,
+            `Я играл в ${appName} и выиграл ${winAmount} € в слот ${slotName}! ${extraContext}`
+        );
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
         
         function showReviewUI(originalText, russianText) {
             const empty = document.getElementById('preview-empty');
