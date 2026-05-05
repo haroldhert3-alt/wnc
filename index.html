@@ -38,9 +38,9 @@
 
     <!-- ⚠️ НАСТРОЙКА: замените YOUR_N8N_URL на URL вашего n8n -->
     <script>
-        const N8N_BASE_URL = 'https://harold1488.app.n8n.cloud';
-        const WEBHOOK_GENERATE = N8N_BASE_URL + '/webhook-test/story-generator';
-        const WEBHOOK_ACTION   = N8N_BASE_URL + '/webhook-test/story-action';
+        const N8N_BASE_URL = 'https://YOUR_N8N_URL';
+        const WEBHOOK_GENERATE = N8N_BASE_URL + '/webhook/story-generator';
+        const WEBHOOK_ACTION   = N8N_BASE_URL + '/webhook/story-action';
     </script>
 
     <!-- Header -->
@@ -378,21 +378,25 @@
             showLoading();
             startLoadingAnimation();
 
-            // Build FormData
-            const formData = new FormData();
-            formData.append('photo', photoFile);
-            formData.append('geo', geo);
-            formData.append('appName', appName);
-            formData.append('winAmount', winAmount);
-            formData.append('length', storyLength);
-            formData.append('slotName', slotName);
-            formData.append('personalContext', extraContext);
-            formData.append('newsResearcher', newsResearcher);
-
             try {
+                // Convert photo to base64 (так все поля попадают в $json на n8n)
+                const photoBase64 = await fileToBase64(photoFile);
+
+                const payload = {
+                    geo,
+                    appName,
+                    winAmount,
+                    length: storyLength,
+                    slotName,
+                    personalContext: extraContext,
+                    newsResearcher,
+                    photoBase64
+                };
+
                 const res = await fetch(WEBHOOK_GENERATE, {
                     method: 'POST',
-                    body: formData
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
 
                 if (!res.ok) {
@@ -628,6 +632,18 @@
             if (!lastGenerated) return;
             const full = lastGenerated.original + '\n\n--- Перевод на русский ---\n\n' + lastGenerated.russian;
             navigator.clipboard.writeText(full).catch(() => {});
+        }
+
+        /* ─────────────────────────────────────────
+           FILE TO BASE64
+        ───────────────────────────────────────── */
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = () => reject(new Error('Не удалось прочитать файл'));
+                reader.readAsDataURL(file);
+            });
         }
 
         /* ─────────────────────────────────────────
